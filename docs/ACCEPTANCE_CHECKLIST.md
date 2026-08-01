@@ -192,8 +192,8 @@ E2E `flow.spec.ts`「リセットすると初期設定へ戻る」で確認。�
 | Private repoテンプレート完成 | 完了 | 検証・生成・通知の全スクリプトとワークフローが動作確認済み |
 | lint成功 | 完了 | 両リポジトリで通過 |
 | typecheck成功 | 完了 | 3つの tsconfig すべてで通過 |
-| unit/integration test成功 | 完了 | アプリ210件、文書リポジトリ100件 |
-| Playwright smoke test成功 | 完了 | Chromium で27件通過。WebKit はCIで実行 |
+| unit/integration test成功 | 完了 | アプリ219件、文書リポジトリ100件 |
+| Playwright smoke test成功 | 完了 | Chromium で28件通過。WebKit はCIで実行 |
 | production PWA build成功 | 完了 | gzip 後 111.3 KB（上限500 KB） |
 | GitHub Pages deploy workflow完成 | 完了 | 実際に配信済み |
 | process-documents workflow完成 | 完了 | 追加・更新・危険HTML拒否を実地確認 |
