@@ -24,9 +24,14 @@
                frame-src 'self';
                object-src 'none';
                base-uri 'none';
-               form-action 'none';
-               frame-ancestors 'none'"
+               form-action 'none'"
     />
+    <!--
+      frame-ancestors はここへ書いても効かない。レスポンスヘッダーでしか
+      解釈されない指定であり、meta へ置くと無視されたうえコンソールを汚す。
+      GitHub Pages ではヘッダーを設定できないため、この経路での埋め込み防止は
+      諦めて他の層（sandbox iframe と最小権限トークン）で守る。
+    -->
     <meta name="referrer" content="no-referrer" />
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#0f1720" />

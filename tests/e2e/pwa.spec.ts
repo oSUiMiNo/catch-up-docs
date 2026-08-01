@@ -86,8 +86,29 @@ test.describe('PWA の条件', () => {
     expect(csp).toContain("base-uri 'none'");
     expect(csp).toContain("form-action 'none'");
 
+    // frame-ancestors はヘッダーでしか効かない。meta へ書くと無視されて
+    // コンソールにエラーが出るため、含めないことを固定する。
+    expect(csp).not.toContain('frame-ancestors');
+
     // 外部CDNやフォントの読み込みを許す記述が無いこと。
     expect(csp).not.toMatch(/https:\/\/(?!api\.github\.com)/);
+  });
+
+  test('起動時にコンソールエラーが出ない（SEC-003）', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') {
+        errors.push(message.text());
+      }
+    });
+    page.on('pageerror', (error) => {
+      errors.push(error.message);
+    });
+
+    await page.goto('./');
+    await expect(page.getByRole('heading', { name: '初期設定' })).toBeVisible();
+
+    expect(errors).toEqual([]);
   });
 
   test('オフライン用のページが用意されている（FR-PWA-003）', async ({ page, request }) => {
