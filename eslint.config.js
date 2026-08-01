@@ -12,13 +12,15 @@ const forbiddenDomSinks = [
     selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
     message: 'dangerouslySetInnerHTML は使用禁止（SEC-004）。sandbox iframe の srcdoc を使うこと。',
   },
+  // 代入だけを禁じる。読み取りは注入経路にならないため、
+  // サニタイズ結果の直列化に outerHTML を読むことは許す。
   {
-    selector: "MemberExpression[property.name='innerHTML']",
-    message: 'innerHTML は使用禁止（SEC-004）。DOMParser と srcdoc を使うこと。',
+    selector: "AssignmentExpression[left.property.name='innerHTML']",
+    message: 'innerHTML への代入は使用禁止（SEC-004）。sandbox iframe の srcdoc を使うこと。',
   },
   {
-    selector: "MemberExpression[property.name='outerHTML']",
-    message: 'outerHTML は使用禁止（SEC-004）。',
+    selector: "AssignmentExpression[left.property.name='outerHTML']",
+    message: 'outerHTML への代入は使用禁止（SEC-004）。',
   },
   {
     selector: "NewExpression[callee.name='Function']",

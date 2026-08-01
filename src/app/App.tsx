@@ -1,70 +1,52 @@
-import { useEffect, useState } from 'react';
-
-import { loadRuntimeConfig, type RuntimeConfig } from '../config/runtimeConfig';
-
-type BootState =
-  | { status: 'loading' }
-  | { status: 'ready'; config: RuntimeConfig }
-  | { status: 'error'; message: string };
-
 /**
- * SCR-01 起動判定。
- * 現時点では公開設定の読み込みだけを行う。以降のフェーズでロック判定と
- * ルーティングを接続する。
+ * 画面の切り替え（10.2）。
+ *
+ * ロック中は dashboard 系の画面へ入れない。状態から機械的に決めることで、
+ * 「ロック中なのに文書情報が見える」経路を作らないようにする。
  */
+
+import { Dashboard } from '../components/Dashboard';
+import { DocumentViewerScreen } from '../components/DocumentViewerScreen';
+import { ErrorScreen } from '../components/ErrorScreen';
+import { LockScreen } from '../components/LockScreen';
+import { PushRegistrationScreen } from '../components/PushRegistrationScreen';
+import { SettingsScreen } from '../components/SettingsScreen';
+import { SetupWizard } from '../components/SetupWizard';
+import { StartupScreen } from '../components/StartupScreen';
+import { AppProvider, useApp } from './AppProvider';
+
+function CurrentScreen(): React.JSX.Element {
+  const { state } = useApp();
+
+  // ロック中に到達できる画面を限定する（FR-AUTH-004）。
+  const locked = state.vault === null;
+
+  switch (state.screen) {
+    case 'startup':
+      return <StartupScreen />;
+    case 'setup':
+      return <SetupWizard />;
+    case 'lock':
+      return <LockScreen />;
+    case 'dashboard':
+      return locked ? <LockScreen /> : <Dashboard />;
+    case 'viewer':
+      return locked ? <LockScreen /> : <DocumentViewerScreen />;
+    case 'settings':
+      return locked ? <LockScreen /> : <SettingsScreen />;
+    case 'push':
+      return locked ? <LockScreen /> : <PushRegistrationScreen />;
+    case 'error':
+      return <ErrorScreen />;
+    default:
+      return <StartupScreen />;
+  }
+}
+
 export function App(): React.JSX.Element {
-  const [state, setState] = useState<BootState>({ status: 'loading' });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void loadRuntimeConfig()
-      .then((config) => {
-        if (!cancelled) {
-          setState({ status: 'ready', config });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setState({ status: 'error', message: 'アプリ設定を読み込めませんでした' });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (state.status === 'loading') {
-    return (
-      <div className="app-shell">
-        <div className="centered-screen" role="status" aria-live="polite">
-          <div className="spinner" aria-hidden="true" />
-          <p>読み込んでいます…</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (state.status === 'error') {
-    return (
-      <div className="app-shell">
-        <div className="centered-screen">
-          <div className="notice notice--error">
-            <h1>起動できません</h1>
-            <p>{state.message}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="app-shell">
-      <div className="centered-screen">
-        <h1>{state.config.appName}</h1>
-        <p className="muted">初期化しました。</p>
-      </div>
-    </div>
+    <AppProvider>
+      <CurrentScreen />
+    </AppProvider>
   );
 }
