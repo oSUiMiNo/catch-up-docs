@@ -1,0 +1,16 @@
+dist/
+coverage/
+node_modules/
+package-lock.json
+public/icons/
+playwright-report/
+test-results/
+dev-dist/
+
+# Bubblewrap が生成する Android プロジェクトは整形対象外
+android/app/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/*.gradle
+android/*.properties

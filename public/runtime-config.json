@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "appName": "catch-up-docs",
+  "appShortName": "catch-up-docs",
+  "appDescription": "個人用の非公開HTML文書ライブラリ",
+  "language": "ja",
+  "themeColor": "#0f1720",
+  "backgroundColor": "#0f1720",
+  "publicBaseUrl": "https://osuimino.github.io/catch-up-docs/",
+  "androidPackageId": "io.github.osuimino.catchupdocs",
+  "vapidPublicKey": "",
+  "workflowFiles": {
+    "registerPushDevice": "register-push-device.yml",
+    "removePushDevice": "remove-push-device.yml",
+    "sendTestPush": "send-test-push.yml"
+  }
+}

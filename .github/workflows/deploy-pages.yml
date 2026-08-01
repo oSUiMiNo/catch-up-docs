@@ -1,0 +1,69 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# SEC-006：deploy に必要な最小権限だけを与える。
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時デプロイを避ける。進行中のものは完了させる。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ビルド
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: 依存をインストール
+        run: npm ci
+
+      - name: 型検査
+        run: npm run typecheck
+
+      - name: 単体・統合テスト
+        run: npm run test
+
+      - name: production ビルド
+        env:
+          # 設定画面へ表示するビルド元コミット（SEC-006）。
+          GITHUB_SHA: ${{ github.sha }}
+        run: npm run build
+
+      - name: 秘密情報スキャン
+        env:
+          PRIVATE_DOCS_REPO_NAME: ${{ secrets.PRIVATE_DOCS_REPO_NAME }}
+        run: npm run verify:secrets
+
+      - name: Pages 設定
+        uses: actions/configure-pages@v5
+
+      - name: 成果物をアップロード
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    name: 配信
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Pages へデプロイ
+        id: deployment
+        uses: actions/deploy-pages@v4

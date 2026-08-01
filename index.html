@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <!--
+      FR-PWA-004: GitHub Pages はレスポンスヘッダーを設定できないため meta で CSP を課す。
+      srcdoc の iframe は埋め込み元のCSPを継承するため、文書内で許可する data: 画像・
+      data: フォント・インラインCSS・blob: メディアをここでも通しておく必要がある。
+      外部CDN・外部フォント・分析スクリプトは一切許可しない。
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               script-src 'self';
+               style-src 'self' 'unsafe-inline';
+               img-src 'self' data: blob:;
+               font-src 'self' data:;
+               media-src 'self' data: blob:;
+               connect-src 'self' https://api.github.com;
+               worker-src 'self' blob:;
+               manifest-src 'self';
+               frame-src 'self';
+               object-src 'none';
+               base-uri 'none';
+               form-action 'none';
+               frame-ancestors 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0f1720" />
+    <meta name="description" content="個人用の非公開HTML文書ライブラリ" />
+    <meta name="robots" content="noindex, nofollow" />
+
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+
+    <title>catch-up-docs</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>
+      このアプリの利用にはJavaScriptが必要です。ブラウザの設定でJavaScriptを有効にしてください。
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

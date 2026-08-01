@@ -1,0 +1,36 @@
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# 秘密情報：リポジトリへ入れない
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+secrets/
+
+# Android ビルド成果物
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/*.apk
+android/*.aab
+android/app/*.apk
+android/app/*.aab
+
+# OS
+.DS_Store
+Thumbs.db
