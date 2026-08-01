@@ -7,7 +7,7 @@
 
 import { createHash } from 'node:crypto';
 
-import type { Page, Route } from '@playwright/test';
+import { expect, type Page, type Route } from '@playwright/test';
 
 export const OWNER = 'example-owner';
 export const REPO = 'example-docs';
@@ -65,18 +65,23 @@ export interface MockOptions {
 /**
  * api.github.com への通信を差し替える。
  * 併せて、差し替えた以外の外部通信が起きていないかを記録する。
+ *
+ * page ではなく context へ仕掛けるのが要点。Service Worker が動いているページ
+ * からの通信は、ブラウザによっては Service Worker 発として扱われ、page.route
+ * では捕まえられない。差し替えが外れると実際の GitHub へ飛んで失敗する。
  */
 export async function mockGitHub(
   page: Page,
   options: MockOptions,
 ): Promise<{ requests: string[] }> {
   const requests: string[] = [];
+  const context = page.context();
 
-  page.on('request', (request) => {
+  context.on('request', (request) => {
     requests.push(request.url());
   });
 
-  await page.route('https://api.github.com/**', async (route: Route) => {
+  await context.route('https://api.github.com/**', async (route: Route) => {
     const url = new URL(route.request().url());
 
     if (url.pathname.endsWith(MANIFEST_PATH)) {
@@ -111,7 +116,12 @@ export async function mockGitHub(
   return { requests };
 }
 
-/** 初期設定ウィザードを最後まで進める。 */
+/**
+ * 初期設定ウィザードを最後まで進め、ダッシュボードに着くまで待つ。
+ *
+ * 各段階で「次へ進める状態になったこと」を確かめてから進む。押せるようになるのを
+ * 暗黙に待つだけだと、遅い環境で前段の非同期処理が終わらないまま次を押してしまう。
+ */
 export async function completeSetup(page: Page): Promise<void> {
   await page.getByLabel('アプリ専用パスワード').fill(PASSWORD);
   await page.getByLabel('もう一度入力').fill(PASSWORD);
@@ -123,7 +133,25 @@ export async function completeSetup(page: Page): Promise<void> {
 
   await page.getByLabel('Fine-grained personal access token').fill(TOKEN);
   await page.getByRole('button', { name: '接続テスト' }).click();
+
+  // 接続テストの成功を待たずに保存を押すと、ボタンが無効なままになる。
+  await expect(page.getByText('接続できました')).toBeVisible();
+
   await page.getByRole('button', { name: '設定を保存して開始' }).click();
+
+  // 初期設定の完了はダッシュボードの表示で判断する。
+  await expect(page.getByLabel('文書を検索')).toBeVisible();
+}
+
+/**
+ * ロックして、ロック画面が出るまで待つ。
+ *
+ * 押しただけでは IndexedDB からセッションを消す処理が終わっていない。
+ * 待たずに再読み込みすると、消える前の状態で復元されてしまう。
+ */
+export async function lockApp(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'ロック' }).click();
+  await expect(page.getByLabel('アプリ専用パスワード')).toBeVisible();
 }
 
 /** 外部（同一オリジンと api.github.com 以外）への通信を抽出する。 */

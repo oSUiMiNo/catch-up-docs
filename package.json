@@ -24,6 +24,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:chromium": "playwright test --project=mobile-chromium",
+    "test:e2e:docker": "docker run --rm -v \"$PWD:/work\" -w /work --user \"$(id -u):$(id -g)\" -e HOME=/tmp -e PLAYWRIGHT_BROWSERS_PATH=/ms-playwright -e CI=1 mcr.microsoft.com/playwright:v1.62.1-noble npx playwright test",
     "setup": "node scripts/setup.mjs",
     "generate:vapid": "node scripts/generate-vapid.mjs",
     "generate:icons": "node scripts/generate-icons.mjs",

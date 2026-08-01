@@ -9,10 +9,17 @@ import {
   completeSetup,
   documentId,
   externalRequests,
+  lockApp,
   mockGitHub,
   PASSWORD,
   type DocumentFixture,
 } from './helpers';
+
+// Playwright は Service Worker を経由したリクエストの傍受を Chromium でしか行えない。
+// Service Worker が動いていると GitHub API のモックが素通りし、実際の GitHub へ
+// 飛んでしまう。ここでの関心事は Service Worker ではないため、登録自体を止める。
+// Service Worker の挙動は pwa.spec.ts が実物のまま検証している。
+test.use({ serviceWorkers: 'block' });
 
 const SAMPLE: DocumentFixture = {
   path: 'documents/sample.html',
@@ -69,8 +76,7 @@ test.describe('初期設定から閲覧まで', () => {
     expect(externalRequests(requests, baseURL ?? '')).toEqual([]);
 
     // ロックすると入力画面へ戻る（FR-AUTH-006）
-    await page.getByRole('button', { name: 'ロック' }).click();
-    await expect(page.getByLabel('アプリ専用パスワード')).toBeVisible();
+    await lockApp(page);
   });
 
   test('ロック後に再読み込みしても一覧を表示しない（AC-005）', async ({ page }) => {
@@ -80,7 +86,7 @@ test.describe('初期設定から閲覧まで', () => {
     await completeSetup(page);
     await expect(page.getByRole('button', { name: /サンプル文書/ })).toBeVisible();
 
-    await page.getByRole('button', { name: 'ロック' }).click();
+    await lockApp(page);
     await page.reload();
 
     await expect(page.getByLabel('アプリ専用パスワード')).toBeVisible();
@@ -92,7 +98,7 @@ test.describe('初期設定から閲覧まで', () => {
 
     await page.goto('./');
     await completeSetup(page);
-    await page.getByRole('button', { name: 'ロック' }).click();
+    await lockApp(page);
 
     await page.getByLabel('アプリ専用パスワード').fill(PASSWORD);
     await page.getByRole('button', { name: '解除する' }).click();
@@ -100,12 +106,40 @@ test.describe('初期設定から閲覧まで', () => {
     await expect(page.getByRole('button', { name: /サンプル文書/ })).toBeVisible();
   });
 
+  test('500件でも一覧を検索して開ける（NFR-001）', async ({ page }) => {
+    // 上限いっぱいの件数で、検索と閲覧が成り立つことを見る。
+    // 描画の最適化（content-visibility）を使わない判断の裏付けでもある。
+    const many: DocumentFixture[] = Array.from({ length: 500 }, (_, index) => ({
+      path: `documents/bulk-${String(index).padStart(3, '0')}.html`,
+      title: `まとめて追加した文書 ${String(index).padStart(3, '0')}`,
+      addedAt: '2026-08-01T00:00:00Z',
+      html: `<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>bulk</title></head>
+<body><p id="bulk">${String(index)}番目の本文。</p></body></html>`,
+    }));
+
+    await mockGitHub(page, { documents: many });
+
+    await page.goto('./');
+    await completeSetup(page);
+
+    // 検索で1件まで絞れる。
+    await page.getByLabel('文書を検索').fill('文書 499');
+    const target = page.getByRole('button', { name: /まとめて追加した文書 499/ });
+    await expect(target).toBeVisible();
+
+    // 絞った先を開ける。
+    await target.click();
+    await expect(page.frameLocator('iframe.viewer-frame').locator('#bulk')).toHaveText(
+      '499番目の本文。',
+    );
+  });
+
   test('誤ったパスワードでは解除できず、文書情報も出ない', async ({ page }) => {
     await mockGitHub(page, { documents: [SAMPLE] });
 
     await page.goto('./');
     await completeSetup(page);
-    await page.getByRole('button', { name: 'ロック' }).click();
+    await lockApp(page);
 
     await page.getByLabel('アプリ専用パスワード').fill('まちがったパスワード');
     await page.getByRole('button', { name: '解除する' }).click();
@@ -122,7 +156,7 @@ test.describe('通知からのディープリンク（FR-PUSH-008）', () => {
     await page.goto('./');
     await completeSetup(page);
     await expect(page.getByRole('button', { name: /サンプル文書/ })).toBeVisible();
-    await page.getByRole('button', { name: 'ロック' }).click();
+    await lockApp(page);
 
     // 通知のリンクで開き直す。
     await page.goto(`./?open=${documentId(SAMPLE.path)}`);
@@ -144,7 +178,7 @@ test.describe('通知からのディープリンク（FR-PUSH-008）', () => {
 
     await page.goto('./');
     await completeSetup(page);
-    await page.getByRole('button', { name: 'ロック' }).click();
+    await lockApp(page);
 
     await page.goto('./?open=doc_ffffffffffffffff');
     await page.getByLabel('アプリ専用パスワード').fill(PASSWORD);

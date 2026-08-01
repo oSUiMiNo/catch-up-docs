@@ -324,10 +324,16 @@ a {
   color: inherit;
   cursor: pointer;
   width: 100%;
-  /* 500件でも描画コストを抑える（NFR-001）。 */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 140px;
 }
+
+/*
+ * content-visibility: auto を使うと 500 件の描画コストは下がるが、WebKit では
+ * 画面外のカードが実寸と異なる仮の高さで置かれ、スクロールしながら押したときに
+ * 判定が隣のカードや隙間へずれることがある。iOS は主対象のため、描画の最適化より
+ * 確実に押せることを優先して使わない。
+ *
+ * カード自体は要素数の少ない単純な構造で、500 件でも描画は間に合う。
+ */
 
 .document-card:hover {
   border-color: var(--accent);

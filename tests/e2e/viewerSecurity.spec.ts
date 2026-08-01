@@ -11,6 +11,12 @@ import { expect, test, type Page } from '@playwright/test';
 import { MALICIOUS_DOCUMENTS } from '../fixtures/maliciousDocuments';
 import { completeSetup, externalRequests, mockGitHub, type DocumentFixture } from './helpers';
 
+// Playwright は Service Worker を経由したリクエストの傍受を Chromium でしか行えない。
+// Service Worker が動いていると GitHub API のモックが素通りし、実際の GitHub へ
+// 飛んでしまう。ここでの関心事は Service Worker ではないため、登録自体を止める。
+// Service Worker の挙動は pwa.spec.ts が実物のまま検証している。
+test.use({ serviceWorkers: 'block' });
+
 function fixture(name: string, html: string): DocumentFixture {
   return { path: `documents/${name}.html`, title: name, html };
 }
