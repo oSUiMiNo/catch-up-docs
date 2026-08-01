@@ -13,6 +13,7 @@ import { PushRegistrationScreen } from '../components/PushRegistrationScreen';
 import { SettingsScreen } from '../components/SettingsScreen';
 import { SetupWizard } from '../components/SetupWizard';
 import { StartupScreen } from '../components/StartupScreen';
+import { UpdateBanner } from '../components/UpdateBanner';
 import { AppProvider, useApp } from './AppProvider';
 
 function CurrentScreen(): React.JSX.Element {
@@ -46,6 +47,8 @@ function CurrentScreen(): React.JSX.Element {
 export function App(): React.JSX.Element {
   return (
     <AppProvider>
+      {/* 更新通知は画面によらず出す（FR-PWA-002）。 */}
+      <UpdateBanner />
       <CurrentScreen />
     </AppProvider>
   );

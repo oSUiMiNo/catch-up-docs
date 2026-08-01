@@ -177,20 +177,6 @@ export function Dashboard(): React.JSX.Element {
       )}
 
       <main className="document-list">
-        {state.updateAvailable && (
-          <Notice tone="info" title="新しいバージョンがあります">
-            <button
-              type="button"
-              className="button"
-              onClick={() => {
-                void actions.applyUpdate();
-              }}
-            >
-              更新して再読み込み
-            </button>
-          </Notice>
-        )}
-
         {state.error !== null && (
           <Notice tone="error" title={state.error.message}>
             <div className="stack">
