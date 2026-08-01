@@ -5,6 +5,10 @@
  * 横方向の動き、すでに同期中のときは何もしない。
  *
  * ライブラリを足さずに Pointer Events だけで組む。指でもマウスでも同じ経路を通る。
+ *
+ * ジェスチャの途中経過は ref に置き、効果は一度だけ張る。
+ * state に置いて依存に含めると、引いている最中に効果が張り直されて
+ * 途中経過（どの指が触れているか）が失われ、離しても更新が走らなくなる。
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -12,8 +16,10 @@ import { useEffect, useRef, useState } from 'react';
 /** これ以上引いたら更新する距離（CSS px）。 */
 const TRIGGER_DISTANCE = 72;
 
-/** 引いた距離の見た目上の上限。実距離の何割を表示に反映するか。 */
+/** 引いた距離の見た目上の上限。 */
 const MAX_INDICATOR_DISTANCE = 96;
+
+/** 実際の移動量のうち、見た目へ反映する割合。指の動きより控えめに動かす。 */
 const RESISTANCE = 0.45;
 
 export interface PullToRefreshState {
@@ -24,15 +30,19 @@ export interface PullToRefreshState {
 }
 
 export interface PullToRefreshOptions {
-  /** 更新の実行。完了を待つ。 */
+  /** 更新の実行。 */
   onRefresh: () => void | Promise<void>;
   /** 同期中は反応させない。 */
   disabled: boolean;
 }
 
-/**
- * 監視対象の要素へ渡す ref と、表示に使う状態を返す。
- */
+interface Gesture {
+  pointerId: number | null;
+  startY: number;
+  pulling: boolean;
+  armed: boolean;
+}
+
 export function usePullToRefresh({
   onRefresh,
   disabled,
@@ -40,7 +50,9 @@ export function usePullToRefresh({
   const containerRef = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<PullToRefreshState>({ distance: 0, armed: false });
 
-  // 効果の中から最新の値を読めるようにする。
+  const gestureRef = useRef<Gesture>({ pointerId: null, startY: 0, pulling: false, armed: false });
+
+  // 効果を張り直さずに最新の値を読むための入れ物。
   const optionsRef = useRef({ onRefresh, disabled });
   optionsRef.current = { onRefresh, disabled };
 
@@ -50,52 +62,57 @@ export function usePullToRefresh({
       return;
     }
 
-    let pointerId: number | null = null;
-    let startY = 0;
-    let pulling = false;
-
     const reset = (): void => {
-      pointerId = null;
-      pulling = false;
+      gestureRef.current = { pointerId: null, startY: 0, pulling: false, armed: false };
       setState({ distance: 0, armed: false });
     };
 
     const onPointerDown = (event: PointerEvent): void => {
-      if (optionsRef.current.disabled || pointerId !== null) {
+      const gesture = gestureRef.current;
+      if (optionsRef.current.disabled || gesture.pointerId !== null) {
         return;
       }
       // 先頭に居るときだけ引き下げの候補にする。
       if (getScrollTop() > 0) {
         return;
       }
-      pointerId = event.pointerId;
-      startY = event.clientY;
+      gesture.pointerId = event.pointerId;
+      gesture.startY = event.clientY;
     };
 
     const onPointerMove = (event: PointerEvent): void => {
-      if (pointerId !== event.pointerId) {
+      const gesture = gestureRef.current;
+      if (gesture.pointerId !== event.pointerId) {
         return;
       }
-      const delta = event.clientY - startY;
 
+      const delta = event.clientY - gesture.startY;
+
+      // 上方向へ動いた、または途中までスクロールしたら取りやめる。
       if (delta <= 0 || getScrollTop() > 0) {
-        if (pulling) {
+        if (gesture.pulling) {
           reset();
         }
         return;
       }
 
-      pulling = true;
       const distance = Math.min(delta * RESISTANCE, MAX_INDICATOR_DISTANCE);
-      setState({ distance, armed: distance >= TRIGGER_DISTANCE });
+      const armed = distance >= TRIGGER_DISTANCE;
+
+      gesture.pulling = true;
+      gesture.armed = armed;
+      setState({ distance, armed });
     };
 
     const onPointerUp = (event: PointerEvent): void => {
-      if (pointerId !== event.pointerId) {
+      const gesture = gestureRef.current;
+      if (gesture.pointerId !== event.pointerId) {
         return;
       }
-      const shouldRefresh = pulling && state.armed;
+
+      const shouldRefresh = gesture.pulling && gesture.armed;
       reset();
+
       if (shouldRefresh && !optionsRef.current.disabled) {
         void optionsRef.current.onRefresh();
       }
@@ -112,8 +129,7 @@ export function usePullToRefresh({
       container.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('pointercancel', onPointerUp);
     };
-    // state.armed を読むため依存に含める。
-  }, [state.armed]);
+  }, []);
 
   return [containerRef, state];
 }
@@ -122,3 +138,10 @@ export function usePullToRefresh({
 function getScrollTop(): number {
   return window.scrollY || document.documentElement.scrollTop;
 }
+
+/** テストから判定条件を確かめられるよう、しきい値を公開する。 */
+export const pullToRefreshThresholds = {
+  triggerDistance: TRIGGER_DISTANCE,
+  maxIndicatorDistance: MAX_INDICATOR_DISTANCE,
+  resistance: RESISTANCE,
+};

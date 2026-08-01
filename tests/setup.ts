@@ -8,6 +8,7 @@
 import { webcrypto } from 'node:crypto';
 
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
 import 'fake-indexeddb/auto';
 import { afterEach } from 'vitest';
 
@@ -26,6 +27,9 @@ if (typeof globalThis.structuredClone !== 'function') {
 }
 
 afterEach(() => {
+  // globals: false で動かしているため Testing Library の自動片付けが登録されない。
+  // 明示的に呼ばないと、描画した要素が次のテストへ残る。
+  cleanup();
   localStorage.clear();
   sessionStorage.clear();
 });
