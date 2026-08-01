@@ -2,6 +2,10 @@ dist/
 coverage/
 node_modules/
 package-lock.json
+
+# マークダウンは見出しの前後の空け方など独自の記法規則に従うため整形対象外
+*.md
+
 public/icons/
 playwright-report/
 test-results/

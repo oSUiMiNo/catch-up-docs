@@ -9,8 +9,11 @@
 
 import { DEEP_LINK_PARAM } from '../config/constants';
 
-export interface DocumentsAddedPayload {
-  type: 'documents-added';
+/** `documents-added` は新規文書の通知、`test` は受信確認用（FR-PUSH-010）。 */
+export type PushPayloadType = 'documents-added' | 'test';
+
+export interface PushPayload {
+  type: PushPayloadType;
   count: number;
   documentIds: string[];
   url?: string;
@@ -22,8 +25,8 @@ const MAX_REPORTED_COUNT = 999;
  * push イベントの本文を安全に解釈する。
  * 壊れた JSON や想定外の形でも例外を投げず、最小限の通知を出せる形へ落とす。
  */
-export function parsePushPayload(raw: string | undefined): DocumentsAddedPayload {
-  const fallback: DocumentsAddedPayload = { type: 'documents-added', count: 1, documentIds: [] };
+export function parsePushPayload(raw: string | undefined): PushPayload {
+  const fallback: PushPayload = { type: 'documents-added', count: 1, documentIds: [] };
 
   if (!raw) {
     return fallback;
@@ -42,6 +45,8 @@ export function parsePushPayload(raw: string | undefined): DocumentsAddedPayload
 
   const candidate = parsed as Record<string, unknown>;
 
+  const type: PushPayloadType = candidate.type === 'test' ? 'test' : 'documents-added';
+
   const count =
     typeof candidate.count === 'number' && Number.isFinite(candidate.count)
       ? Math.min(Math.max(Math.trunc(candidate.count), 1), MAX_REPORTED_COUNT)
@@ -51,7 +56,7 @@ export function parsePushPayload(raw: string | undefined): DocumentsAddedPayload
     ? candidate.documentIds.filter((id): id is string => typeof id === 'string')
     : [];
 
-  const payload: DocumentsAddedPayload = { type: 'documents-added', count, documentIds };
+  const payload: PushPayload = { type, count, documentIds };
 
   if (typeof candidate.url === 'string') {
     payload.url = candidate.url;
@@ -62,12 +67,16 @@ export function parsePushPayload(raw: string | undefined): DocumentsAddedPayload
 
 /**
  * FR-PUSH-007：一般化された本文。ロック画面に出ても内容が分からない文言にする。
+ * 文書タイトル、ファイル名、リポジトリ名を含めない。
  */
-export function buildNotificationBody(count: number): string {
-  if (count <= 1) {
+export function buildNotificationBody(payload: PushPayload): string {
+  if (payload.type === 'test') {
+    return '通知のテストです。受信できています。';
+  }
+  if (payload.count <= 1) {
     return '新しいドキュメントが追加されました。';
   }
-  return `新しいドキュメントが${String(count)}件追加されました。`;
+  return `新しいドキュメントが${String(payload.count)}件追加されました。`;
 }
 
 /**
@@ -79,10 +88,10 @@ export function buildNotificationBody(count: number): string {
  * @param payload push で受け取ったペイロード
  * @param scopeUrl Service Worker のスコープ（絶対 URL、末尾スラッシュ付き）
  */
-export function resolveDeepLinkUrl(payload: DocumentsAddedPayload, scopeUrl: string): string {
+export function resolveDeepLinkUrl(payload: PushPayload, scopeUrl: string): string {
   const scope = new URL(scopeUrl);
 
-  if (payload.count > 1) {
+  if (payload.type === 'test' || payload.count > 1) {
     return scope.toString();
   }
 

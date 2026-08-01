@@ -9,7 +9,7 @@ import { webcrypto } from 'node:crypto';
 
 import '@testing-library/jest-dom/vitest';
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach } from 'vitest';
+import { afterEach } from 'vitest';
 
 // jsdom の crypto には subtle が無いため Node の Web Crypto を使う。
 if (!globalThis.crypto?.subtle) {
@@ -25,15 +25,10 @@ if (typeof globalThis.structuredClone !== 'function') {
   throw new Error('structuredClone が利用できません。Node 24 以上で実行してください。');
 }
 
-beforeEach(() => {
-  // 各テストは独立した IndexedDB から始める。
-  const databases = ['private-html-library'];
-  for (const name of databases) {
-    indexedDB.deleteDatabase(name);
-  }
-});
-
 afterEach(() => {
   localStorage.clear();
   sessionStorage.clear();
 });
+
+// IndexedDB を使うテストは、開いている接続を閉じてから消す必要があるため、
+// 各テストファイル側で storage/db.ts の destroyDatabase() を呼ぶ。

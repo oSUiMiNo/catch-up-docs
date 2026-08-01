@@ -151,7 +151,7 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     self.registration.showNotification(NOTIFICATION_TITLE, {
-      body: buildNotificationBody(payload.count),
+      body: buildNotificationBody(payload),
       // 端末に同種の通知が積み上がらないようまとめる。
       tag: 'documents-added',
       icon: new URL('icons/icon-192.png', SCOPE_URL).toString(),

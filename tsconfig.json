@@ -6,6 +6,10 @@
     "moduleResolution": "bundler",
     "moduleDetection": "force",
     "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
     // node はテストのセットアップ（node:crypto の読み込み）でのみ必要。
     // src からは Node API を使わないこと。
     "types": ["vite/client", "vite-plugin-pwa/client", "node"],
