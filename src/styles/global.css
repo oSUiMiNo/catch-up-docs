@@ -420,3 +420,16 @@ a {
   overflow-wrap: anywhere;
   margin: 0;
 }
+
+/* ── 引き下げて更新 ─────────────────────────────────────── */
+
+.pull-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+}

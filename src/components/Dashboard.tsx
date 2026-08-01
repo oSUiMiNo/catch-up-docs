@@ -8,6 +8,7 @@
 import { useDeferredValue, useMemo } from 'react';
 
 import { useApp } from '../app/AppProvider';
+import { usePullToRefresh } from '../app/usePullToRefresh';
 import { DASHBOARD_VISIBLE_TAGS } from '../config/constants';
 import type { ManifestDocument } from '../github/manifestSchema';
 import { isUnread } from '../storage/readState';
@@ -100,8 +101,14 @@ export function Dashboard(): React.JSX.Element {
     isUnread(state.readState, document.id, document.contentSha256),
   ).length;
 
+  // FR-DASH-003：引き下げて更新。一覧の先頭にいるときだけ反応する。
+  const [pullContainerRef, pull] = usePullToRefresh({
+    onRefresh: () => actions.sync(),
+    disabled: state.syncing,
+  });
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" ref={pullContainerRef}>
       <header className="app-header">
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <strong>{state.runtimeConfig?.appName ?? 'catch-up-docs'}</strong>
@@ -157,6 +164,17 @@ export function Dashboard(): React.JSX.Element {
               : 'まだ同期していません'}
         </p>
       </header>
+
+      {pull.distance > 0 && (
+        <div
+          className="pull-indicator"
+          style={{ height: `${String(pull.distance)}px` }}
+          role="status"
+          aria-live="polite"
+        >
+          {pull.armed ? '離すと更新します' : '引き下げて更新'}
+        </div>
+      )}
 
       <main className="document-list">
         {state.updateAvailable && (
