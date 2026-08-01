@@ -1,0 +1,43 @@
+{
+  "packageId": "io.github.osuimino.catchupdocs",
+  "host": "osuimino.github.io",
+  "name": "catch-up-docs",
+  "launcherName": "catch-up-docs",
+  "display": "standalone",
+  "themeColor": "#0f1720",
+  "themeColorDark": "#0f1720",
+  "navigationColor": "#0f1720",
+  "navigationColorDark": "#0f1720",
+  "navigationDividerColor": "#0f1720",
+  "navigationDividerColorDark": "#0f1720",
+  "backgroundColor": "#0f1720",
+  "enableNotifications": true,
+  "startUrl": "/catch-up-docs/",
+  "iconUrl": "https://osuimino.github.io/catch-up-docs/icons/icon-512.png",
+  "maskableIconUrl": "https://osuimino.github.io/catch-up-docs/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "catch-up-docs"
+  },
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://osuimino.github.io/catch-up-docs/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://osuimino.github.io/catch-up-docs/",
+  "minSdkVersion": 26,
+  "orientation": "any",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "displayOverride": []
+}

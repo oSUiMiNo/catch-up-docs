@@ -1,0 +1,177 @@
+name: Android release
+
+# 署名済み APK を作って GitHub Release へ添付する（FR-ANDROID-007）。
+#
+# ここで使うツールのバージョンは android/Dockerfile と一致させること。
+# Bubblewrap は build-tools のバージョンを定数で持っており、
+# 一致しないと zipalign と apksigner を見つけられずに失敗する。
+
+on:
+  push:
+    tags:
+      - 'android-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'アプリのバージョン（例：1.0.1）'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: '17'
+  BUBBLEWRAP_VERSION: '1.25.0'
+  ANDROID_BUILD_TOOLS: '36.1.0'
+  ANDROID_PLATFORM: '36'
+
+jobs:
+  build:
+    name: 署名済みAPKのビルド
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: JDK を用意
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Android SDK を用意
+        uses: android-actions/setup-android@v4
+        with:
+          packages: >-
+            platform-tools
+            platforms;android-${{ env.ANDROID_PLATFORM }}
+            build-tools;${{ env.ANDROID_BUILD_TOOLS }}
+
+      - name: 必要な Secrets が揃っているか確認
+        # 値そのものは出さず、欠けている名前だけを知らせる。
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=''
+          [ -z "$KEYSTORE" ] && missing="$missing ANDROID_KEYSTORE_BASE64"
+          [ -z "$KEYSTORE_PASSWORD" ] && missing="$missing ANDROID_KEYSTORE_PASSWORD"
+          [ -z "$KEY_ALIAS" ] && missing="$missing ANDROID_KEY_ALIAS"
+          [ -z "$KEY_PASSWORD" ] && missing="$missing ANDROID_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::次の Secret が設定されていません:$missing"
+            exit 1
+          fi
+
+      - name: Bubblewrap を用意
+        run: |
+          npm install -g "@bubblewrap/cli@${BUBBLEWRAP_VERSION}"
+          # Bubblewrap は cmdline-tools 以前の配置を前提に SDK を探すため、
+          # 旧配置への入口を用意する（android/Dockerfile と同じ対処）。
+          mkdir -p "$ANDROID_HOME/tools/bin"
+          printf '#!/bin/sh\nexec "%s/cmdline-tools/latest/bin/sdkmanager" "$@"\n' "$ANDROID_HOME" \
+            > "$ANDROID_HOME/tools/bin/sdkmanager"
+          chmod +x "$ANDROID_HOME/tools/bin/sdkmanager"
+          mkdir -p "$HOME/.bubblewrap"
+          printf '{"jdkPath":"%s","androidSdkPath":"%s"}\n' "$JAVA_HOME" "$ANDROID_HOME" \
+            > "$HOME/.bubblewrap/config.json"
+          bubblewrap doctor
+
+      - name: バージョンを決める
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
+            version='${{ inputs.version }}'
+          else
+            version="${GITHUB_REF_NAME#android-v}"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # versionCode は単調増加でなければ上書き更新できない（FR-ANDROID-009）。
+          echo "version_code=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: twa-manifest のバージョンを更新
+        working-directory: android
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const manifest = JSON.parse(fs.readFileSync("twa-manifest.json", "utf8"));
+            manifest.appVersion = process.env.VERSION;
+            manifest.appVersionCode = Number(process.env.VERSION_CODE);
+            fs.writeFileSync("twa-manifest.json", JSON.stringify(manifest, null, 2) + "\n");
+          '
+
+      - name: 署名鍵を復元
+        working-directory: android
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          printf '%s' "$KEYSTORE" | base64 -d > android.keystore
+          chmod 600 android.keystore
+
+      - name: Android プロジェクトを再生成
+        working-directory: android
+        run: bubblewrap update --skipVersionUpgrade
+
+      - name: APK をビルド
+        working-directory: android
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bubblewrap build --skipPwaValidation
+
+      - name: 署名を検証
+        working-directory: android
+        run: |
+          "$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS}/apksigner" verify --verbose app-release-signed.apk
+          "$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS}/apksigner" verify --print-certs app-release-signed.apk \
+            | grep -i 'SHA-256 digest'
+
+      - name: 成果物を整える
+        id: artifacts
+        working-directory: android
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          name="private-html-library-v${VERSION}.apk"
+          mv app-release-signed.apk "$name"
+          sha256sum "$name" > "${name}.sha256"
+          echo "apk=android/$name" >> "$GITHUB_OUTPUT"
+          echo "checksum=android/${name}.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: 署名鍵を消す
+        if: always()
+        working-directory: android
+        run: rm -f android.keystore
+
+      - name: Release を作成
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          APK: ${{ steps.artifacts.outputs.apk }}
+          CHECKSUM: ${{ steps.artifacts.outputs.checksum }}
+        run: |
+          tag="android-v${VERSION}"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" \
+              --title "Android v${VERSION}" \
+              --notes "Google Play を使わずに直接インストールする APK です。手順は docs/ANDROID_INSTALL.md を参照してください。"
+          fi
+          gh release upload "$tag" "$APK" "$CHECKSUM" --clobber
+
+      - name: ビルド成果物を保存
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-apk
+          path: |
+            ${{ steps.artifacts.outputs.apk }}
+            ${{ steps.artifacts.outputs.checksum }}
+          retention-days: 30

@@ -30,6 +30,8 @@ android/*.apk
 android/*.aab
 android/app/*.apk
 android/app/*.aab
+android/*.idsig
+android/app-release-*.apk
 
 # OS
 .DS_Store

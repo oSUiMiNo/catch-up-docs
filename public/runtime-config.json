@@ -8,7 +8,7 @@
   "backgroundColor": "#0f1720",
   "publicBaseUrl": "https://osuimino.github.io/catch-up-docs/",
   "androidPackageId": "io.github.osuimino.catchupdocs",
-  "vapidPublicKey": "",
+  "vapidPublicKey": "BNRCmjLezrTyfeJYl9gafGARYHpNSgX5bOHI640lI3KLaUUJRFf8ufpLQphtDa7sy2Rlk7_rr1yxkiVZScdP3gU",
   "workflowFiles": {
     "registerPushDevice": "register-push-device.yml",
     "removePushDevice": "remove-push-device.yml",

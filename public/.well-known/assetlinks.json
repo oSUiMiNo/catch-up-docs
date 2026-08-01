@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.osuimino.catchupdocs",
+      "sha256_cert_fingerprints": [
+        "F7:05:0C:8A:5B:D4:E2:65:9D:54:87:A2:41:CB:10:D2:9B:38:71:59:82:45:9A:B3:BE:85:E8:5B:D2:F1:67:60"
+      ]
+    }
+  }
+]

@@ -86,6 +86,9 @@ jobs:
           path: dist
 
       - name: E2E テスト
+        env:
+          # AC-002 の検査で使う。値はログへ出さない。
+          PRIVATE_DOCS_REPO_NAME: ${{ secrets.PRIVATE_DOCS_REPO_NAME }}
         run: npm run test:e2e
 
       - name: レポートを保存
