@@ -73,7 +73,7 @@ E2E `flow.spec.ts`「ロック後に再読み込みしても一覧を表示し�
 ### AC-008　iframe隔離
 **状態**：自動
 
-E2E `viewerSecurity.spec.ts` で、悪意あるHTMLを実ブラウザへ渡して11項目を確認しています。
+E2E `viewerSecurity.spec.ts` で、悪意あるHTMLを実ブラウザへ渡して11項目を確認しています。Chromium と WebKit の双方で通過しています。
 
 | 確認項目 | 結果 |
 |---|---|
@@ -193,7 +193,7 @@ E2E `flow.spec.ts`「リセットすると初期設定へ戻る」で確認。�
 | lint成功 | 完了 | 両リポジトリで通過 |
 | typecheck成功 | 完了 | 3つの tsconfig すべてで通過 |
 | unit/integration test成功 | 完了 | アプリ219件、文書リポジトリ100件 |
-| Playwright smoke test成功 | 完了 | Chromium で28件通過。WebKit はCIで実行 |
+| Playwright smoke test成功 | 完了 | Chromium と WebKit で58件通過（CIとローカルの双方） |
 | production PWA build成功 | 完了 | gzip 後 111.3 KB（上限500 KB） |
 | GitHub Pages deploy workflow完成 | 完了 | 実際に配信済み |
 | process-documents workflow完成 | 完了 | 追加・更新・危険HTML拒否を実地確認 |
