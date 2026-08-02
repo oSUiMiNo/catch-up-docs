@@ -40,7 +40,8 @@ export interface TextFieldProps {
   value: string;
   onChange: (value: string) => void;
   type?: 'text' | 'password';
-  hint?: string;
+  // 条件によって渡したり渡さなかったりするため、undefined を明示的に許す。
+  hint?: string | undefined;
   autoComplete?: string;
   placeholder?: string;
   disabled?: boolean;

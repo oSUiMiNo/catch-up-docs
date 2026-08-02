@@ -106,6 +106,27 @@ test.describe('初期設定から閲覧まで', () => {
     await expect(page.getByRole('button', { name: /サンプル文書/ })).toBeVisible();
   });
 
+  test('初期設定で聞くのはリポジトリ名だけにする', async ({ page }) => {
+    await mockGitHub(page, { documents: [SAMPLE] });
+
+    await page.goto('./');
+    await page.getByLabel('アプリ専用パスワード').fill(PASSWORD);
+    await page.getByLabel('もう一度入力').fill(PASSWORD);
+    await page.getByRole('button', { name: '次へ' }).click();
+
+    // オーナー名は公開URLから埋まっている。打ち直す必要がない。
+    await expect(page.getByLabel('GitHubのオーナー名')).toHaveValue('osuimino');
+
+    // ブランチと文書一覧の場所は、内部の決めごとなので既定では見せない。
+    await expect(page.getByLabel('ブランチ名')).toBeHidden();
+    await expect(page.getByLabel('文書一覧ファイルの場所')).toBeHidden();
+
+    // 必要になったときだけ開ける。
+    await page.getByText('詳細設定').click();
+    await expect(page.getByLabel('ブランチ名')).toHaveValue('main');
+    await expect(page.getByLabel('文書一覧ファイルの場所')).toHaveValue('.app/manifest.json');
+  });
+
   test('500件でも一覧を検索して開ける（NFR-001）', async ({ page }) => {
     // 上限いっぱいの件数で、検索と閲覧が成り立つことを見る。
     // 描画の最適化（content-visibility）を使わない判断の裏付けでもある。

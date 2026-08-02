@@ -298,14 +298,22 @@ export function SettingsScreen(): React.JSX.Element {
             </button>
           ) : (
             <>
-              <TextField label="GitHubのオーナー名" value={owner} onChange={setOwner} />
               <TextField label="リポジトリ名" value={repo} onChange={setRepo} />
-              <TextField label="ブランチ名" value={branch} onChange={setBranch} />
-              <TextField
-                label="文書一覧ファイルの場所"
-                value={manifestPath}
-                onChange={setManifestPath}
-              />
+              <TextField label="GitHubのオーナー名" value={owner} onChange={setOwner} />
+
+              {/* 初期設定と同じく、通常は触らない項目は畳んでおく。 */}
+              <details>
+                <summary className="disclosure">詳細設定</summary>
+                <div className="stack" style={{ marginTop: 'var(--space-3)' }}>
+                  <TextField label="ブランチ名" value={branch} onChange={setBranch} />
+                  <TextField
+                    label="文書一覧ファイルの場所"
+                    value={manifestPath}
+                    onChange={setManifestPath}
+                  />
+                </div>
+              </details>
+
               <TextField
                 label="アクセストークン"
                 type="password"

@@ -76,6 +76,24 @@ export function setRuntimeConfigForTest(config: RuntimeConfig | null): void {
   cached = config;
 }
 
+/**
+ * 公開URLから GitHub のオーナー名を導く。
+ *
+ * オーナー名は `<owner>.github.io` として公開URLにそのまま現れるため、隠す意味がない。
+ * 利用者に打たせず既定値として埋める。独自ドメインの場合は導けないので空を返す。
+ *
+ * 一方でリポジトリ名は公開資産へ一切置けない（AC-002）。こちらは利用者の入力に頼る。
+ */
+export function deriveOwnerFromPublicUrl(publicBaseUrl: string): string {
+  try {
+    const host = new URL(publicBaseUrl).hostname.toLowerCase();
+    const match = /^([a-z0-9-]+)\.github\.io$/.exec(host);
+    return match?.[1] ?? '';
+  } catch {
+    return '';
+  }
+}
+
 /** 通知登録ワークフローの実行画面 URL を組み立てる（FR-PUSH-004）。 */
 export function buildWorkflowDispatchUrl(
   owner: string,

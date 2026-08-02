@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { validatePassword } from '../auth/vault';
 import { PASSWORD_MIN_LENGTH } from '../config/constants';
 import { useApp } from '../app/AppProvider';
+import { deriveOwnerFromPublicUrl } from '../config/runtimeConfig';
 import { appConfigDefaults, type AppConfig } from '../storage/appConfig';
 import { AppError } from '../github/errors';
 import { Notice, Spinner, TextField } from './ui';
@@ -46,16 +47,21 @@ function describeStrength(password: string): { label: string; level: number } {
 }
 
 export function SetupWizard(): React.JSX.Element {
-  const { actions } = useApp();
+  const { state, actions } = useApp();
+
+  // 公開URLから導けるものは既定値として埋め、利用者に打たせない。
+  const derivedOwner = deriveOwnerFromPublicUrl(state.runtimeConfig?.publicBaseUrl ?? '');
 
   const [step, setStep] = useState<Step>(1);
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
-  const [owner, setOwner] = useState('');
+  const [owner, setOwner] = useState(derivedOwner);
   const [repo, setRepo] = useState('');
   const [branch, setBranch] = useState<string>(appConfigDefaults.branch);
   const [manifestPath, setManifestPath] = useState<string>(appConfigDefaults.manifestPath);
   const [token, setToken] = useState('');
+  // ブランチと文書一覧の場所は、通常は触る必要がない。既定値で隠しておく。
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const [testing, setTesting] = useState(false);
   const [tested, setTested] = useState(false);
@@ -174,9 +180,16 @@ export function SetupWizard(): React.JSX.Element {
         {step === 2 && (
           <div className="card stack">
             <h2>文書リポジトリを指定する</h2>
-            <p className="muted">
-              閲覧したいHTMLを置いてある、非公開リポジトリの情報を入力します。
-            </p>
+            <p className="muted">閲覧したいHTMLを置いてある、非公開リポジトリの名前を入れます。</p>
+
+            <TextField
+              label="リポジトリ名"
+              value={repo}
+              onChange={setRepo}
+              placeholder="例：my-private-docs"
+              autoComplete="off"
+              hint="この名前はアプリの外に出ません。端末の中で暗号化して保存します。"
+            />
 
             <TextField
               label="GitHubのオーナー名"
@@ -184,22 +197,39 @@ export function SetupWizard(): React.JSX.Element {
               onChange={setOwner}
               placeholder="例：your-account"
               autoComplete="off"
+              hint={
+                derivedOwner.length > 0
+                  ? '公開URLから自動で入れています。違う場合だけ直してください。'
+                  : undefined
+              }
             />
-            <TextField
-              label="リポジトリ名"
-              value={repo}
-              onChange={setRepo}
-              placeholder="例：my-private-docs"
-              autoComplete="off"
-            />
-            <TextField label="ブランチ名" value={branch} onChange={setBranch} autoComplete="off" />
-            <TextField
-              label="文書一覧ファイルの場所"
-              value={manifestPath}
-              onChange={setManifestPath}
-              hint="通常は変更しません。"
-              autoComplete="off"
-            />
+
+            {/* 通常は触る必要がないため畳んでおく。変えられる余地は残す。 */}
+            <details
+              open={advancedOpen}
+              onToggle={(event) => {
+                setAdvancedOpen(event.currentTarget.open);
+              }}
+            >
+              <summary className="disclosure">詳細設定</summary>
+              <div className="stack" style={{ marginTop: 'var(--space-3)' }}>
+                <p className="hint">
+                  通常は変更しません。ブランチを分けている場合や、文書一覧の置き場所を変えた場合だけ使います。
+                </p>
+                <TextField
+                  label="ブランチ名"
+                  value={branch}
+                  onChange={setBranch}
+                  autoComplete="off"
+                />
+                <TextField
+                  label="文書一覧ファイルの場所"
+                  value={manifestPath}
+                  onChange={setManifestPath}
+                  autoComplete="off"
+                />
+              </div>
+            </details>
 
             <div className="row">
               <button
