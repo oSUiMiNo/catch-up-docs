@@ -63,9 +63,12 @@ export function SettingsScreen(): React.JSX.Element {
 
   useEffect(() => {
     if (githubPanelOpen && connection) {
+      // 現在の値をそのまま初期表示する。埋め忘れると、触っていない項目が
+      // 既定値へ書き換わってしまう。
       setOwner(connection.owner);
       setRepo(connection.repo);
       setBranch(connection.branch);
+      setManifestPath(connection.manifestPath);
     }
     // 開いたときだけ初期化する。
     // eslint-disable-next-line react-hooks/exhaustive-deps

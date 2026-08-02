@@ -62,8 +62,17 @@ export interface AppActions {
   setSearchQuery: (query: string) => void;
   clearError: () => void;
   applyUpdate: () => Promise<void>;
-  /** 設定画面が使う。PAT は含めない。 */
-  describeConnection: () => { owner: string; repo: string; branch: string } | null;
+  /**
+   * 設定画面が使う。PAT は含めない。
+   * manifestPath も返すのは、設定変更の画面で既存の値を初期表示するため。
+   * 返さないと、他の項目だけ直して保存したときに既定値へ戻ってしまう。
+   */
+  describeConnection: () => {
+    owner: string;
+    repo: string;
+    branch: string;
+    manifestPath: string;
+  } | null;
 }
 
 interface AppContextValue {
@@ -294,7 +303,12 @@ export function AppProvider({ children }: { children: ReactNode }): React.JSX.El
     if (!config) {
       return null;
     }
-    return { owner: config.owner, repo: config.repo, branch: config.branch };
+    return {
+      owner: config.owner,
+      repo: config.repo,
+      branch: config.branch,
+      manifestPath: config.manifestPath,
+    };
   }, []);
 
   // ── 起動 ─────────────────────────────────────────────────

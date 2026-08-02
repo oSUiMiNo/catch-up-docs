@@ -256,6 +256,25 @@ test.describe('設定画面（AC-020）', () => {
     await expect(page.getByRole('heading', { name: '初期設定' })).toBeVisible();
   });
 
+  test('GitHub設定の変更画面に現在の値が入っている', async ({ page }) => {
+    await mockGitHub(page, { documents: [SAMPLE] });
+
+    await page.goto('./');
+    await completeSetup(page);
+    await page.getByRole('button', { name: '設定' }).click();
+
+    const section = page.locator('section', { hasText: 'GitHub設定とトークンの更新' });
+    await section.getByRole('button', { name: '変更する' }).click();
+
+    // 触っていない項目が既定値へ書き換わらないよう、現在の値を初期表示する。
+    await expect(page.getByLabel('リポジトリ名')).toHaveValue('example-docs');
+    await expect(page.getByLabel('GitHubのオーナー名')).toHaveValue('example-owner');
+
+    await section.getByText('詳細設定').click();
+    await expect(page.getByLabel('ブランチ名')).toHaveValue('main');
+    await expect(page.getByLabel('文書一覧ファイルの場所')).toHaveValue('.app/manifest.json');
+  });
+
   test('診断情報にトークンやリポジトリ名が含まれない（FR-SETTINGS-003）', async ({ page }) => {
     await mockGitHub(page, { documents: [SAMPLE] });
 
