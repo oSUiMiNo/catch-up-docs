@@ -54,8 +54,8 @@ test.describe('初期設定から閲覧まで', () => {
     await expect(page.getByRole('button', { name: /2件目の文書/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /サンプル文書/ })).toBeVisible();
 
-    // 新着として表示される（FR-DASH-004）
-    await expect(page.getByText('新着').first()).toBeVisible();
+    // まだ開いていない文書は「新規」として表示される（FR-DASH-004）
+    await expect(page.getByText('新規').first()).toBeVisible();
 
     // 検索で絞り込める（FR-DASH-002）
     await page.getByLabel('文書を検索').fill('2件目');
@@ -201,6 +201,40 @@ test.describe('文書内の移動', () => {
 
     // 見出しが画面内へ来ていること。
     await expect(frame.locator('#section2')).toBeInViewport();
+  });
+});
+
+test.describe('未読バッジの出し分け（FR-DASH-004）', () => {
+  test('新規と、読んだあとで書き換わったものを区別する', async ({ page }) => {
+    // mockGitHub はこの配列を毎回のリクエストで読み直すため、
+    // 中身を書き換えれば「文書が更新された」状況を作れる。
+    const target: DocumentFixture = { ...SAMPLE };
+    await mockGitHub(page, { documents: [target] });
+
+    await page.goto('./');
+    await completeSetup(page);
+
+    const card = page.getByRole('button', { name: /サンプル文書/ });
+
+    // まだ開いていないので新規。
+    await expect(card).toContainText('新規');
+
+    // 開いて戻るとバッジが消える。
+    await card.click();
+    await expect(page.frameLocator('iframe.viewer-frame').locator('#heading')).toBeVisible();
+    await page.getByRole('button', { name: '← 戻る' }).click();
+    await expect(card).not.toContainText('新規');
+    await expect(card).not.toContainText('更新');
+
+    // 中身を差し替えると contentSha256 が変わる。
+    target.html = `<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>サンプル文書</title></head>
+<body><h1 id="heading">書き換えた見出し</h1><p>差し替えた本文。</p></body></html>`;
+
+    await page.getByRole('button', { name: '今すぐ同期' }).click();
+
+    // 一度読んでいるので、新規ではなく更新として出る。
+    await expect(card).toContainText('更新');
+    await expect(card).not.toContainText('新規');
   });
 });
 

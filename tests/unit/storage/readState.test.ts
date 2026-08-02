@@ -6,6 +6,7 @@ import {
   isUnread,
   markAsRead,
   pruneReadState,
+  unreadKind,
 } from '@/storage/readState';
 
 const HASH_A = 'a'.repeat(64);
@@ -35,6 +36,23 @@ describe('未読判定（FR-DASH-004）', () => {
   it('既読にすると読んだ時刻を保持する', () => {
     const state = markAsRead(emptyReadState(), 'doc_0000000000000001', HASH_A, NOW);
     expect(state.entries.doc_0000000000000001).toEqual({ contentSha256: HASH_A, readAt: NOW });
+  });
+});
+
+describe('未読の種類', () => {
+  // 一覧のバッジを「新規」と「更新」で出し分けるための判定。
+  it('一度も開いていない文書は新規', () => {
+    expect(unreadKind(emptyReadState(), 'doc_0000000000000001', HASH_A)).toBe('new');
+  });
+
+  it('開いたあとで中身が変わった文書は更新', () => {
+    const state = markAsRead(emptyReadState(), 'doc_0000000000000001', HASH_A, NOW);
+    expect(unreadKind(state, 'doc_0000000000000001', HASH_B)).toBe('updated');
+  });
+
+  it('開いたまま変わっていない文書は既読', () => {
+    const state = markAsRead(emptyReadState(), 'doc_0000000000000001', HASH_A, NOW);
+    expect(unreadKind(state, 'doc_0000000000000001', HASH_A)).toBe('none');
   });
 });
 

@@ -369,6 +369,15 @@ a {
   font-weight: 700;
 }
 
+/*
+  更新は新規と別の色にするが、色が見分けられなくても困らないよう
+  文字自体を「新規」「更新」で分けてある（10.1）。
+*/
+.badge--updated {
+  background: var(--warning);
+  color: var(--accent-fg);
+}
+
 .tag {
   border: 1px solid var(--border);
   border-radius: 999px;

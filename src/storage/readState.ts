@@ -49,18 +49,35 @@ export async function deleteReadState(): Promise<void> {
 }
 
 /**
- * 未読かどうかを判定する（FR-DASH-004）。
+ * 未読の種類。一覧のバッジを出し分けるために使う。
  *
- * 次のいずれかなら未読。
- *   - 初めて出現した document id
- *   - 既読にしたときから contentSha256 が変わっている
+ *   - `new`     ：まだ一度も開いていない
+ *   - `updated` ：一度開いたあとで中身が書き換わった
+ *   - `none`    ：既読
  */
-export function isUnread(state: ReadState, documentId: string, contentSha256: string): boolean {
+export type UnreadKind = 'none' | 'new' | 'updated';
+
+/**
+ * 未読かどうかと、その理由を判定する（FR-DASH-004）。
+ *
+ * 既読の記録が無ければ新規、記録はあるが contentSha256 が違えば更新。
+ * 判定の根拠をこの1箇所に集めておき、画面側では数えたり表示したりするだけにする。
+ */
+export function unreadKind(
+  state: ReadState,
+  documentId: string,
+  contentSha256: string,
+): UnreadKind {
   const entry = state.entries[documentId];
   if (!entry) {
-    return true;
+    return 'new';
   }
-  return entry.contentSha256 !== contentSha256;
+  return entry.contentSha256 === contentSha256 ? 'none' : 'updated';
+}
+
+/** 未読かどうかだけを知りたいときに使う。 */
+export function isUnread(state: ReadState, documentId: string, contentSha256: string): boolean {
+  return unreadKind(state, documentId, contentSha256) !== 'none';
 }
 
 /** 表示に成功した時点で既読にする。 */

@@ -11,8 +11,14 @@ import { useApp } from '../app/AppProvider';
 import { usePullToRefresh } from '../app/usePullToRefresh';
 import { DASHBOARD_VISIBLE_TAGS } from '../config/constants';
 import type { ManifestDocument } from '../github/manifestSchema';
-import { isUnread } from '../storage/readState';
+import { unreadKind, type UnreadKind } from '../storage/readState';
 import { formatBytes, formatDate, formatDateTime, Notice, Spinner } from './ui';
+
+/** 未読の種類ごとのバッジ。新規と更新は対で読めるよう短い語で揃える。 */
+const UNREAD_BADGE: Record<Exclude<UnreadKind, 'none'>, { label: string; className: string }> = {
+  new: { label: '新規', className: 'badge' },
+  updated: { label: '更新', className: 'badge badge--updated' },
+};
 
 /** タイトル・説明・タグを対象に部分一致で絞る（FR-DASH-002）。 */
 export function filterDocuments(
@@ -38,25 +44,26 @@ function DocumentCard({
   onOpen,
 }: {
   document: ManifestDocument;
-  unread: boolean;
+  unread: UnreadKind;
   onOpen: () => void;
 }): React.JSX.Element {
   const visibleTags = document.tags.slice(0, DASHBOARD_VISIBLE_TAGS);
   const hiddenTagCount = document.tags.length - visibleTags.length;
   const updated = document.updatedAt !== document.addedAt;
+  const badge = unread === 'none' ? null : UNREAD_BADGE[unread];
 
   return (
     <button
       type="button"
       className="card document-card"
       onClick={onOpen}
-      aria-label={`${document.title}${unread ? '（新着）' : ''}`}
+      aria-label={`${document.title}${badge ? `（${badge.label}）` : ''}`}
     >
       <div className="stack">
         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <h2 className="document-card__title">{document.title}</h2>
-          {/* 色だけで新着を示さず、文字でも表す（10.1）。 */}
-          {unread && <span className="badge">新着</span>}
+          {/* 色だけで区別させず、新規と更新を文字でも分ける（10.1）。 */}
+          {badge && <span className={badge.className}>{badge.label}</span>}
         </div>
 
         {document.description.length > 0 && (
@@ -97,9 +104,16 @@ export function Dashboard(): React.JSX.Element {
     [documents, deferredQuery],
   );
 
-  const unreadCount = documents.filter((document) =>
-    isUnread(state.readState, document.id, document.contentSha256),
-  ).length;
+  const unread = useMemo(() => {
+    const kinds = documents.map((document) =>
+      unreadKind(state.readState, document.id, document.contentSha256),
+    );
+    return {
+      new: kinds.filter((kind) => kind === 'new').length,
+      updated: kinds.filter((kind) => kind === 'updated').length,
+    };
+  }, [documents, state.readState]);
+  const unreadCount = unread.new + unread.updated;
 
   // FR-DASH-003：引き下げて更新。一覧の先頭にいるときだけ反応する。
   const [pullContainerRef, pull] = usePullToRefresh({
@@ -160,7 +174,7 @@ export function Dashboard(): React.JSX.Element {
           {state.syncing
             ? '同期しています…'
             : state.lastSyncedAt !== null
-              ? `最終同期 ${formatDateTime(state.lastSyncedAt)}・${String(documents.length)}件・未読${String(unreadCount)}件`
+              ? `最終同期 ${formatDateTime(state.lastSyncedAt)}・${String(documents.length)}件・未読${String(unreadCount)}件${unreadCount > 0 ? `（新規${String(unread.new)}・更新${String(unread.updated)}）` : ''}`
               : 'まだ同期していません'}
         </p>
       </header>
@@ -221,7 +235,7 @@ export function Dashboard(): React.JSX.Element {
           <DocumentCard
             key={document.id}
             document={document}
-            unread={isUnread(state.readState, document.id, document.contentSha256)}
+            unread={unreadKind(state.readState, document.id, document.contentSha256)}
             onOpen={() => {
               actions.openDocument(document.id);
             }}
