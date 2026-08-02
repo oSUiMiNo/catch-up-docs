@@ -170,6 +170,40 @@ test.describe('初期設定から閲覧まで', () => {
   });
 });
 
+test.describe('文書内の移動', () => {
+  const WITH_TOC: DocumentFixture = {
+    path: 'documents/toc.html',
+    title: '目次のある文書',
+    html: `<!doctype html><html lang="ja"><head><meta charset="UTF-8"><title>目次のある文書</title></head>
+<body>
+  <nav><a id="toclink" href="#section2">2章へ</a></nav>
+  <h2 id="section1">1章</h2>
+  <p style="margin-bottom: 2000px">1章の本文。</p>
+  <h2 id="section2">2章</h2>
+  <p id="body2">2章の本文。</p>
+</body></html>`,
+  };
+
+  test('目次のリンクで文書内を移動でき、別ページへ飛ばない', async ({ page }) => {
+    await mockGitHub(page, { documents: [WITH_TOC] });
+
+    await page.goto('./');
+    await completeSetup(page);
+    await page.getByRole('button', { name: /目次のある文書/ }).click();
+
+    const frame = page.frameLocator('iframe.viewer-frame');
+    await expect(frame.locator('#body2')).toHaveText('2章の本文。');
+
+    await frame.locator('#toclink').click();
+
+    // 文書が残っていること。別ページを読み込むと本文ごと消える。
+    await expect(frame.locator('#body2')).toHaveText('2章の本文。');
+
+    // 見出しが画面内へ来ていること。
+    await expect(frame.locator('#section2')).toBeInViewport();
+  });
+});
+
 test.describe('通知からのディープリンク（FR-PUSH-008）', () => {
   test('ロック中に届いた宛先を解除後に開く', async ({ page }) => {
     await mockGitHub(page, { documents: [SAMPLE] });

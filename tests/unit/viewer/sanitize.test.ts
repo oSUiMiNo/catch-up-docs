@@ -110,9 +110,20 @@ describe('外部リソースの除去（FR-VIEW-003）', () => {
 });
 
 describe('アンカーの扱い', () => {
-  it('ページ内リンクは残す', () => {
+  it('ページ内リンクは文書自身の URL を足して残す', () => {
     const result = sanitize(MALICIOUS_DOCUMENTS.benign);
-    expect(result).toContain('href="#section"');
+    // srcdoc の相対URLの基準は埋め込み元のページになるため、
+    // `#section` のままだとアプリ本体へ移動してしまう。
+    expect(result).toContain('href="about:srcdoc#section"');
+  });
+
+  it('ページ内リンクの飛び先はアプリ本体にならない', () => {
+    const result = sanitize('<a href="#ch2">2章へ</a><h2 id="ch2">2章</h2>');
+    const resolved = new URL(
+      /href="([^"]+)"/.exec(result)?.[1] ?? '',
+      'https://example.test/catch-up-docs/',
+    );
+    expect(resolved.href).toBe('about:srcdoc#ch2');
   });
 
   it('外部リンクの href を落として印を付ける', () => {

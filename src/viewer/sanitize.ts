@@ -51,6 +51,17 @@ const ALLOWED_RESOURCE_PREFIXES = ['data:', 'blob:'];
 /** 明確に危険な scheme。 */
 const DANGEROUS_SCHEME = /^\s*(javascript|vbscript|livescript|mocha|data:text\/html)/i;
 
+/**
+ * srcdoc で読み込まれた文書自身の URL。
+ *
+ * srcdoc の文書は「自分の URL は about:srcdoc、ただし相対URLの基準は埋め込み元」
+ * という決まりになっている。そのため `href="#見出し"` をそのまま残すと、
+ * アプリ本体の URL + #見出し へ移動してしまい、文書が消える。
+ * 基準を変える `<base>` は文書内CSPの `base-uri 'none'` で使えないため、
+ * リンク側へ文書自身の URL を書き足して同一文書内の移動にする。
+ */
+const SRCDOC_DOCUMENT_URL = 'about:srcdoc';
+
 export interface SanitizeResult {
   html: string;
   /** 取り除いた項目の要約。診断や説明に使う。本文は含めない。 */
@@ -157,6 +168,8 @@ export function sanitizeDocumentHtml(html: string): SanitizeResult {
         element.removeAttribute('href');
         element.setAttribute('data-link-removed', 'true');
         removed.externalLinks += 1;
+      } else if (href !== null) {
+        element.setAttribute('href', `${SRCDOC_DOCUMENT_URL}${href}`);
       }
       // 別ウィンドウで開く指示も落とす。
       element.removeAttribute('target');
