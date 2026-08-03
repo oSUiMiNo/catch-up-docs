@@ -35,7 +35,7 @@
   "isMetaQuest": false,
   "fullScopeUrl": "https://osuimino.github.io/catch-up-docs/",
   "minSdkVersion": 26,
-  "orientation": "any",
+  "orientation": "default",
   "fingerprints": [],
   "additionalTrustedOrigins": [],
   "retainedBundles": [],

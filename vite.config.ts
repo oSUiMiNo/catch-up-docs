@@ -45,7 +45,9 @@ export default defineConfig({
         lang: runtimeConfig.language,
         // 日本語UIのみのため左横書き固定。プラグインの型は 'auto' を受け付けない。
         dir: 'ltr',
-        orientation: 'any',
+        // orientation は指定しない。指定すると端末の自動回転の設定より
+        // アプリの宣言が優先され、回転をオフにしていても倒すだけで回ってしまう。
+        // 指定しなければどの向きも許され、回すかどうかを利用者が決められる。
         theme_color: runtimeConfig.themeColor,
         background_color: runtimeConfig.backgroundColor,
         categories: ['productivity', 'utilities'],

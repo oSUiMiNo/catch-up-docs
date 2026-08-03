@@ -24,6 +24,7 @@ test.describe('PWA の条件', () => {
       scope?: string;
       display?: string;
       lang?: string;
+      orientation?: string;
       icons?: { src: string; sizes: string; purpose?: string }[];
     };
 
@@ -33,6 +34,10 @@ test.describe('PWA の条件', () => {
     expect(manifest.scope).toBeTruthy();
     expect(manifest.display).toBe('standalone');
     expect(manifest.lang).toBe('ja');
+
+    // 画面の向きは宣言しない。宣言すると端末の自動回転の設定より優先され、
+    // 回転をオフにしていても倒すだけで回ってしまう。
+    expect(manifest.orientation).toBeUndefined();
 
     const sizes = (manifest.icons ?? []).map((icon) => icon.sizes);
     expect(sizes).toContain('192x192');
