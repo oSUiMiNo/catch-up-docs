@@ -46,7 +46,8 @@ const PUSH_STATUS_HINT: Record<PushStatus, string> = {
   unknown: 'まだ確かめていません。ワークフローを実行してから押してください。',
   unsupported: 'この環境では通知を使えません。',
   'no-subscription': 'この端末で通知が有効になっていません。上の手順からやり直してください。',
-  'not-registered': 'まだ登録されていません。ワークフローの実行が終わってから、もう一度押してください。',
+  'not-registered':
+    'まだ登録されていません。ワークフローの実行が終わってから、もう一度押してください。',
   registered: '登録できています。以降、文書が追加されると通知が届きます。',
 };
 

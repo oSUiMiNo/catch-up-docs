@@ -43,13 +43,7 @@ import { loadReadState, markAsRead, pruneReadState, saveReadState } from '../sto
 import { logger } from '../utils/logger';
 import { buildViewerDocument } from '../viewer/injectCsp';
 import { sanitizeDocumentHtml } from '../viewer/sanitize';
-import {
-  appReducer,
-  initialAppState,
-  type AppState,
-  type PushStatus,
-  type Screen,
-} from './state';
+import { appReducer, initialAppState, type AppState, type PushStatus, type Screen } from './state';
 
 export interface ViewerContent {
   document: ManifestDocument;

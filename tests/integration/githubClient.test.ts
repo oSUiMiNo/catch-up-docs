@@ -331,7 +331,11 @@ describe('通知の登録状態（FR-PUSH-004）', () => {
   it('購読が0件なら空の配列になる', async () => {
     server.use(
       http.get(SUBSCRIPTIONS_URL, () =>
-        HttpResponse.json({ schemaVersion: 1, updatedAt: '2026-08-02T00:00:00Z', subscriptions: [] }),
+        HttpResponse.json({
+          schemaVersion: 1,
+          updatedAt: '2026-08-02T00:00:00Z',
+          subscriptions: [],
+        }),
       ),
     );
 
@@ -345,9 +349,7 @@ describe('通知の登録状態（FR-PUSH-004）', () => {
   });
 
   it('壊れた内容でも例外にせず null を返す', async () => {
-    server.use(
-      http.get(SUBSCRIPTIONS_URL, () => new HttpResponse('{ 壊れた', { status: 200 })),
-    );
+    server.use(http.get(SUBSCRIPTIONS_URL, () => new HttpResponse('{ 壊れた', { status: 200 })));
 
     expect(await fetchRegisteredSubscriptionIds(CONFIG)).toBeNull();
   });
