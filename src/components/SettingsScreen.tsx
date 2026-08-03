@@ -9,11 +9,21 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useApp } from '../app/AppProvider';
 import { collectDiagnostics, formatDiagnostics } from '../app/diagnostics';
+import type { PushStatus } from '../app/state';
 import { buildWorkflowDispatchUrl } from '../config/runtimeConfig';
 import { AppError } from '../github/errors';
 import { currentSubscriptionId, unsubscribeCurrentDevice } from '../push/subscribe';
 import { appConfigDefaults, type AppConfig } from '../storage/appConfig';
 import { ConfirmDialog, Notice, TextField, formatDateTime } from './ui';
+
+/** 通知が届く状態かを、そのまま読んで分かる言葉にする。 */
+const PUSH_STATUS_LABEL: Record<PushStatus, string> = {
+  unknown: '確認できていません',
+  unsupported: 'この環境では使えません',
+  'no-subscription': 'この端末で有効にしていません',
+  'not-registered': '未登録（登録ワークフローが未実行）',
+  registered: '登録済み',
+};
 
 function maskValue(value: string): string {
   if (value.length <= 2) {
@@ -189,7 +199,13 @@ export function SettingsScreen(): React.JSX.Element {
             <dt>通知の許可</dt>
             <dd>{'Notification' in window ? Notification.permission : '非対応'}</dd>
             <dt>購読 id</dt>
-            <dd>{subscriptionId ?? '未登録'}</dd>
+            <dd>{subscriptionId ?? '未作成'}</dd>
+            {/*
+              端末に購読があることと、通知が届くことは別。届くかどうかは
+              文書リポジトリの購読ファイルに載って初めて決まる。
+            */}
+            <dt>通知の登録</dt>
+            <dd>{PUSH_STATUS_LABEL[state.pushStatus]}</dd>
           </dl>
         </section>
 

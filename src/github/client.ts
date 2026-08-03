@@ -8,11 +8,14 @@
  *   - 取得後に SHA-256 を照合し、合わなければ本文を返さない（FR-GH-005 / AC-015）
  */
 
+import { z } from 'zod';
+
 import {
   GITHUB_MAX_RETRIES,
   GITHUB_RETRY_BASE_DELAY_MS,
   GITHUB_RETRY_MAX_DELAY_MS,
   MAX_DOCUMENT_BYTES,
+  PUSH_SUBSCRIPTIONS_PATH,
 } from '../config/constants';
 import { sha256Hex } from '../crypto/sha256';
 import type { AppConfig } from '../storage/appConfig';
@@ -38,6 +41,14 @@ interface RequestOptions {
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * 購読ファイルのうち、この画面が使う部分だけを取り出す形。
+ * endpoint と鍵は意図的に読まない。読めば持ち回れてしまうため。
+ */
+const subscriptionIdsSchema = z.object({
+  subscriptions: z.array(z.object({ id: z.string().regex(/^[0-9a-f]{16}$/) })),
+});
 
 /**
  * 再試行つきの fetch。
@@ -198,6 +209,54 @@ export async function fetchDocument(
   const html = decodeUtf8(bytes);
 
   return { html, sizeBytes: bytes.byteLength, contentSha256 };
+}
+
+/**
+ * 文書リポジトリへ登録済みの購読 id を取り出す（FR-PUSH-005）。
+ *
+ * 通知の登録は、端末で購読を作る操作と、その内容をワークフローへ貼り付ける操作の
+ * 2段構えになっている。後半を忘れても端末側は何も変わらないため、アプリからは
+ * この一覧を見るしか「登録が終わったか」を知る手立てがない。
+ *
+ * **id 以外は関数の外へ出さない。** 購読ファイルには endpoint と鍵も入っているが、
+ * ここで必要なのは「この端末が載っているか」だけであり、持ち回る理由がない。
+ *
+ * 読めなかった場合は例外にせず null を返す。購読ファイルがまだ無い状況は
+ * 珍しくなく、それを異常として扱うと利用者に無用な警告を出すことになる。
+ */
+export async function fetchRegisteredSubscriptionIds(
+  config: AppConfig,
+  options: RequestOptions = {},
+): Promise<string[] | null> {
+  const url = buildContentsUrl({
+    owner: config.owner,
+    repo: config.repo,
+    path: PUSH_SUBSCRIPTIONS_PATH,
+    ref: config.branch,
+  });
+
+  let text: string;
+  try {
+    const response = await fetchWithRetry(url, buildHeaders(config.personalAccessToken), options);
+    text = await response.text();
+  } catch {
+    return null;
+  }
+
+  const parsed = subscriptionIdsSchema.safeParse(safeParseJson(text));
+  if (!parsed.success) {
+    return null;
+  }
+
+  return parsed.data.subscriptions.map((subscription) => subscription.id);
+}
+
+function safeParseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 /** UTF-8 として厳密に解釈する。壊れていれば表示しない。 */

@@ -41,6 +41,8 @@ Settings → Developer settings → Personal access tokens → Fine-grained toke
 
 アプリは文書リポジトリへ書き込みません。書き込み権限を持たせないために、この一手間が入っています。
 
+**Androidやブラウザの設定で通知を許可しただけでは届きません。** 許可は端末の中だけの話で、文書リポジトリ側には何も伝わりません。下のワークフローを実行して初めて、送信先としてこの端末が登録されます。
+
 ### 何を入れるか
 | 場所 | 項目 | 値 |
 |---|---|---|
@@ -49,7 +51,11 @@ Settings → Developer settings → Personal access tokens → Fine-grained toke
 | Register push device ワークフロー | `subscription_json` | アプリでコピーしたJSONをそのまま貼り付け |
 
 ### どう確認するか
-ワークフローが成功し、`.app/push-subscriptions.json` が更新されていれば登録できています。続けて Send test push を実行し、端末に通知が届くことを確認してください。
+アプリの通知設定画面にある「登録できたか確認」を押してください。「登録できています」と出れば完了です。
+
+ワークフロー側でも、成功して `.app/push-subscriptions.json` が更新されていれば登録できています。続けて Send test push を実行し、端末に通知が届くことを確認してください。
+
+登録が済むと、一覧画面に出ていた通知の案内が消えます。案内が残っている場合はまだ届きません。
 
 ### その後どう進むか
 以降は、文書を追加するたびに自動で通知が届きます。詳しくは `docs/PUSH_REGISTRATION.md` を参照してください。

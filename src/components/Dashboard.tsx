@@ -8,11 +8,27 @@
 import { useDeferredValue, useMemo } from 'react';
 
 import { useApp } from '../app/AppProvider';
+import type { PushStatus } from '../app/state';
 import { usePullToRefresh } from '../app/usePullToRefresh';
 import { DASHBOARD_VISIBLE_TAGS } from '../config/constants';
 import type { ManifestDocument } from '../github/manifestSchema';
 import { unreadKind, type UnreadKind } from '../storage/readState';
 import { formatBytes, formatDate, formatDateTime, Notice, Spinner } from './ui';
+
+/**
+ * 通知が届かない状態のとき、一覧の上に出す案内。
+ * 届く状態と、調べられなかった状態では何も出さない。黙って邪魔をしないため。
+ */
+const PUSH_NOTICE: Partial<Record<PushStatus, { title: string; body: string }>> = {
+  'no-subscription': {
+    title: '通知を受け取る設定がまだです',
+    body: '文書が追加されたときに知らせを受け取るには、この端末で通知を有効にしてください。',
+  },
+  'not-registered': {
+    title: 'あと1手順で通知が届きます',
+    body: 'この端末の通知は有効ですが、登録ワークフローの実行が終わっていません。済ませるまで通知は届きません。',
+  },
+};
 
 /** 未読の種類ごとのバッジ。新規と更新は対で読めるよう短い語で揃える。 */
 const UNREAD_BADGE: Record<Exclude<UnreadKind, 'none'>, { label: string; className: string }> = {
@@ -115,6 +131,8 @@ export function Dashboard(): React.JSX.Element {
   }, [documents, state.readState]);
   const unreadCount = unread.new + unread.updated;
 
+  const pushNotice = PUSH_NOTICE[state.pushStatus] ?? null;
+
   // FR-DASH-003：引き下げて更新。一覧の先頭にいるときだけ反応する。
   const [pullContainerRef, pull] = usePullToRefresh({
     onRefresh: () => actions.sync(),
@@ -213,6 +231,29 @@ export function Dashboard(): React.JSX.Element {
                   }}
                 >
                   設定を確認
+                </button>
+              </div>
+            </div>
+          </Notice>
+        )}
+
+        {/*
+          通知の登録は2段構えで、端末で許可しただけでは届かない。
+          残りの手順があることをここで知らせないと、届かない理由が誰にも分からない。
+        */}
+        {pushNotice && (
+          <Notice tone="info" title={pushNotice.title}>
+            <div className="stack">
+              <span>{pushNotice.body}</span>
+              <div className="row">
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => {
+                    actions.goTo('push');
+                  }}
+                >
+                  通知の設定へ
                 </button>
               </div>
             </div>

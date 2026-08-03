@@ -28,16 +28,28 @@ import {
 } from '../auth/vault';
 import { DEEP_LINK_PARAM } from '../config/constants';
 import { loadRuntimeConfig } from '../config/runtimeConfig';
-import { fetchDocument, fetchManifest, testConnection } from '../github/client';
+import {
+  fetchDocument,
+  fetchManifest,
+  fetchRegisteredSubscriptionIds,
+  testConnection,
+} from '../github/client';
 import { AppError, describeErrorCode, type AppErrorDescription } from '../github/errors';
 import type { ManifestDocument } from '../github/manifestSchema';
 import { listenForDeepLinks, registerServiceWorker } from '../push/register';
+import { currentSubscriptionId, detectPushSupport } from '../push/subscribe';
 import { loadAppConfig, saveAppConfig, type AppConfig } from '../storage/appConfig';
 import { loadReadState, markAsRead, pruneReadState, saveReadState } from '../storage/readState';
 import { logger } from '../utils/logger';
 import { buildViewerDocument } from '../viewer/injectCsp';
 import { sanitizeDocumentHtml } from '../viewer/sanitize';
-import { appReducer, initialAppState, type AppState, type Screen } from './state';
+import {
+  appReducer,
+  initialAppState,
+  type AppState,
+  type PushStatus,
+  type Screen,
+} from './state';
 
 export interface ViewerContent {
   document: ManifestDocument;
@@ -62,6 +74,11 @@ export interface AppActions {
   setSearchQuery: (query: string) => void;
   clearError: () => void;
   applyUpdate: () => Promise<void>;
+  /**
+   * 通知が届く状態かを調べ直す。
+   * 登録ワークフローを実行したあとに押して結果を確かめられるよう、画面からも呼べる。
+   */
+  refreshPushStatus: () => Promise<void>;
   /**
    * 設定画面が使う。PAT は含めない。
    * manifestPath も返すのは、設定変更の画面で既存の値を初期表示するため。
@@ -298,6 +315,51 @@ export function AppProvider({ children }: { children: ReactNode }): React.JSX.El
     await updateHandle.current?.applyUpdate();
   }, []);
 
+  // ── 通知の登録状態 ───────────────────────────────────────
+
+  /**
+   * 通知が届く状態かを判定する（FR-PUSH-004）。
+   *
+   * 端末に購読があるかだけでは足りない。購読を作ったあとワークフローへ
+   * 貼り付けるのを忘れていると、端末側は何も変わらないまま通知だけが届かない。
+   * 文書リポジトリの購読ファイルに、この端末の id が載っているかまで確かめる。
+   *
+   * 判定に失敗しても他の機能を止めない。通知はあくまで補助であり、
+   * 一覧の閲覧を妨げてまで知らせる価値はないため。
+   */
+  const refreshPushStatus = useCallback(async () => {
+    const decide = async (): Promise<PushStatus> => {
+      if (!detectPushSupport().supported) {
+        return 'unsupported';
+      }
+
+      const subscriptionId = await currentSubscriptionId();
+      if (subscriptionId === null) {
+        return 'no-subscription';
+      }
+
+      const config = stateRef.current.config;
+      if (!config) {
+        return 'unknown';
+      }
+
+      const registered = await fetchRegisteredSubscriptionIds(config);
+      if (registered === null) {
+        // 購読ファイルを読めなかった。未登録と決めつけない。
+        return 'unknown';
+      }
+
+      return registered.includes(subscriptionId) ? 'registered' : 'not-registered';
+    };
+
+    try {
+      dispatch({ type: 'push-status-changed', status: await decide() });
+    } catch {
+      logger.debug('通知の登録状態を確かめられませんでした');
+      dispatch({ type: 'push-status-changed', status: 'unknown' });
+    }
+  }, []);
+
   const describeConnection = useCallback(() => {
     const config = stateRef.current.config;
     if (!config) {
@@ -381,6 +443,15 @@ export function AppProvider({ children }: { children: ReactNode }): React.JSX.El
     });
   }, []);
 
+  // 解除できたら、通知が届く状態かを確かめる（FR-PUSH-004）。
+  // 「許可したのに来ない」を放置しないための確認で、失敗しても他は止めない。
+  useEffect(() => {
+    if (!state.vault || !state.config) {
+      return;
+    }
+    void refreshPushStatus();
+  }, [state.vault, state.config, refreshPushStatus]);
+
   // 解除済みで保留中のディープリンクがあれば開く。
   useEffect(() => {
     if (!state.vault || !state.manifest || !state.pendingDocumentId) {
@@ -416,6 +487,7 @@ export function AppProvider({ children }: { children: ReactNode }): React.JSX.El
       setSearchQuery,
       clearError,
       applyUpdate,
+      refreshPushStatus,
       describeConnection,
     }),
     [
@@ -435,6 +507,7 @@ export function AppProvider({ children }: { children: ReactNode }): React.JSX.El
       setSearchQuery,
       clearError,
       applyUpdate,
+      refreshPushStatus,
       describeConnection,
     ],
   );

@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react';
 
 import { useApp } from '../app/AppProvider';
+import type { PushStatus } from '../app/state';
 import { buildWorkflowDispatchUrl } from '../config/runtimeConfig';
 import { describeErrorCode } from '../github/errors';
 import {
@@ -40,6 +41,15 @@ function describeUnsupported(support: Extract<PushSupport, { supported: false }>
   }
 }
 
+/** 確認ボタンを押したあとに出す、状態ごとの説明。 */
+const PUSH_STATUS_HINT: Record<PushStatus, string> = {
+  unknown: 'まだ確かめていません。ワークフローを実行してから押してください。',
+  unsupported: 'この環境では通知を使えません。',
+  'no-subscription': 'この端末で通知が有効になっていません。上の手順からやり直してください。',
+  'not-registered': 'まだ登録されていません。ワークフローの実行が終わってから、もう一度押してください。',
+  registered: '登録できています。以降、文書が追加されると通知が届きます。',
+};
+
 export function PushRegistrationScreen(): React.JSX.Element {
   const { state, actions } = useApp();
 
@@ -49,6 +59,7 @@ export function PushRegistrationScreen(): React.JSX.Element {
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     setSupport(detectPushSupport());
@@ -85,6 +96,15 @@ export function PushRegistrationScreen(): React.JSX.Element {
       }
     } finally {
       setBusy(false);
+    }
+  };
+
+  const check = async (): Promise<void> => {
+    setChecking(true);
+    try {
+      await actions.refreshPushStatus();
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -198,6 +218,23 @@ export function PushRegistrationScreen(): React.JSX.Element {
             <p className="hint">
               ワークフローの実行画面で、端末名とこのJSONを貼り付けて実行してください。登録できるのは5台までです。
             </p>
+
+            {/*
+              貼り付けを忘れても端末側は何も変わらないため、済んだかどうかを
+              利用者が自力で判断できない。リポジトリを見て確かめられるようにする。
+            */}
+            <h2>4. 登録できたか確かめる</h2>
+            <button
+              type="button"
+              className="button"
+              disabled={checking}
+              onClick={() => {
+                void check();
+              }}
+            >
+              {checking ? '確認しています…' : '登録できたか確認'}
+            </button>
+            <p className="hint">{PUSH_STATUS_HINT[state.pushStatus]}</p>
           </section>
         )}
       </main>

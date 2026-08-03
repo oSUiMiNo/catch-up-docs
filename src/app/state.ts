@@ -15,6 +15,25 @@ import { emptyReadState, type ReadState } from '../storage/readState';
 export type Screen =
   'startup' | 'setup' | 'lock' | 'dashboard' | 'viewer' | 'settings' | 'push' | 'error';
 
+/**
+ * 通知が届く状態になっているか（FR-PUSH-004）。
+ *
+ * 通知の登録は2段構えで、端末で購読を作っただけでは届かない。作った内容を
+ * ワークフローへ貼り付けて、文書リポジトリの購読ファイルへ載せて初めて届く。
+ * 「許可したのに来ない」を防ぐため、どちらが済んでいないのかを区別して持つ。
+ */
+export type PushStatus =
+  /** まだ調べていない。 */
+  | 'unknown'
+  /** この環境では通知を使えない（iOSでホーム画面から起動していない等）。 */
+  | 'unsupported'
+  /** この端末で通知をまだ有効にしていない。 */
+  | 'no-subscription'
+  /** 購読はあるが、リポジトリへの登録が済んでいない。 */
+  | 'not-registered'
+  /** 登録済み。通知が届く。 */
+  | 'registered';
+
 export interface AppState {
   screen: Screen;
   runtimeConfig: RuntimeConfig | null;
@@ -39,6 +58,7 @@ export interface AppState {
 
   error: AppErrorDescription | null;
   updateAvailable: boolean;
+  pushStatus: PushStatus;
 }
 
 export const initialAppState: AppState = {
@@ -57,6 +77,7 @@ export const initialAppState: AppState = {
   pendingDocumentId: null,
   error: null,
   updateAvailable: false,
+  pushStatus: 'unknown',
 };
 
 export type AppAction =
@@ -76,7 +97,8 @@ export type AppAction =
   | { type: 'consume-queued-document' }
   | { type: 'error'; error: AppErrorDescription }
   | { type: 'clear-error' }
-  | { type: 'update-available' };
+  | { type: 'update-available' }
+  | { type: 'push-status-changed'; status: PushStatus };
 
 /**
  * ロック時に捨てる値をまとめる。
@@ -93,6 +115,8 @@ function clearSensitive(state: AppState): AppState {
     openDocumentId: null,
     searchQuery: '',
     lastSyncedAt: null,
+    // 登録状態はリポジトリを読まないと分からない。解除し直したら調べ直す。
+    pushStatus: 'unknown',
   };
 }
 
@@ -177,6 +201,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'update-available':
       return { ...state, updateAvailable: true };
+
+    case 'push-status-changed':
+      return { ...state, pushStatus: action.status };
 
     default:
       return state;

@@ -115,6 +115,12 @@ export const MAX_PUSH_DEVICES = 5;
 /** FR-PUSH-003：購読 JSON のスキーマ版。 */
 export const PUSH_SUBSCRIPTION_SCHEMA_VERSION = 1;
 
+/**
+ * FR-PUSH-005：文書リポジトリ側で購読を保持しているファイル。
+ * アプリはここへ書き込まないが、この端末が登録済みかを確かめるために読む。
+ */
+export const PUSH_SUBSCRIPTIONS_PATH = '.app/push-subscriptions.json';
+
 /** 通知に載せる文言。FR-PUSH-007 により文書名やリポジトリ名は含めない。 */
 export const NOTIFICATION_TITLE = 'catch-up-docs';
 

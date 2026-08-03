@@ -238,6 +238,30 @@ test.describe('未読バッジの出し分け（FR-DASH-004）', () => {
   });
 });
 
+test.describe('通知の登録漏れの案内（FR-PUSH-004）', () => {
+  test('通知が届かない端末には一覧で知らせ、設定画面へ送る', async ({ page, browserName }) => {
+    await mockGitHub(page, { documents: [SAMPLE] });
+
+    await page.goto('./');
+    await completeSetup(page);
+
+    const notice = page.getByText('通知を受け取る設定がまだです');
+
+    if (browserName === 'webkit') {
+      // iPhone は通常のタブでは通知そのものを使えないため、一覧では促さない。
+      // 促しても解決できないことを求めることになる。案内は通知画面側にある。
+      await expect(notice).toHaveCount(0);
+      return;
+    }
+
+    // 許可していない端末では、通知が来ない理由が一覧から分かる。
+    await expect(notice).toBeVisible();
+
+    await page.getByRole('button', { name: '通知の設定へ' }).click();
+    await expect(page.getByRole('heading', { name: '1. この端末の名前を決める' })).toBeVisible();
+  });
+});
+
 test.describe('通知からのディープリンク（FR-PUSH-008）', () => {
   test('ロック中に届いた宛先を解除後に開く', async ({ page }) => {
     await mockGitHub(page, { documents: [SAMPLE] });
@@ -314,7 +338,7 @@ test.describe('設定画面（AC-020）', () => {
 
     await page.goto('./');
     await completeSetup(page);
-    await page.getByRole('button', { name: '設定' }).click();
+    await page.getByRole('button', { name: '設定', exact: true }).click();
 
     await expect(page.getByRole('heading', { name: '状態' })).toBeVisible();
 
@@ -329,7 +353,7 @@ test.describe('設定画面（AC-020）', () => {
 
     await page.goto('./');
     await completeSetup(page);
-    await page.getByRole('button', { name: '設定' }).click();
+    await page.getByRole('button', { name: '設定', exact: true }).click();
 
     const section = page.locator('section', { hasText: 'GitHub設定とトークンの更新' });
     await section.getByRole('button', { name: '変更する' }).click();
@@ -348,7 +372,7 @@ test.describe('設定画面（AC-020）', () => {
 
     await page.goto('./');
     await completeSetup(page);
-    await page.getByRole('button', { name: '設定' }).click();
+    await page.getByRole('button', { name: '設定', exact: true }).click();
 
     const diagnostics = await page.locator('pre.diagnostics').first().innerText();
     expect(diagnostics).not.toContain('e2e-token-value');

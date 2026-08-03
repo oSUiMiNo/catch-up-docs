@@ -9,7 +9,12 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 
 import { initializeVault, lockNow, restoreSession } from '@/auth/vault';
 import { GITHUB_API_VERSION, SESSION_DURATION_MS } from '@/config/constants';
-import { fetchDocument, fetchManifest, testConnection } from '@/github/client';
+import {
+  fetchDocument,
+  fetchManifest,
+  fetchRegisteredSubscriptionIds,
+  testConnection,
+} from '@/github/client';
 import { AppError } from '@/github/errors';
 import type { AppConfig } from '@/storage/appConfig';
 import { destroyDatabase } from '@/storage/db';
@@ -29,6 +34,9 @@ const DOCUMENT_PATH = 'documents/sample.html';
 const DOCUMENT_URL = `https://api.github.com/repos/example-owner/example-docs/contents/documents/sample.html`;
 const DOCUMENT_HTML =
   '<!doctype html><html><head><title>テスト</title></head><body>本文</body></html>';
+
+const SUBSCRIPTIONS_URL =
+  'https://api.github.com/repos/example-owner/example-docs/contents/.app/push-subscriptions.json';
 
 const server = setupServer();
 
@@ -265,5 +273,82 @@ describe('ロック状態との関係', () => {
 
     expect(result).toEqual({ status: 'locked', reason: 'expired' });
     expect(requests).toHaveLength(0);
+  });
+});
+
+describe('通知の登録状態（FR-PUSH-004）', () => {
+  it('登録済みの購読 id を取り出せる', async () => {
+    server.use(
+      http.get(SUBSCRIPTIONS_URL, () =>
+        HttpResponse.json({
+          schemaVersion: 1,
+          updatedAt: '2026-08-02T00:00:00Z',
+          subscriptions: [
+            {
+              id: '0123456789abcdef',
+              label: 'Pixel',
+              createdAt: '2026-08-02T00:00:00Z',
+              endpoint: 'https://push.example/endpoint-value',
+              keys: { p256dh: 'p256dh-value', auth: 'auth-value' },
+            },
+          ],
+        }),
+      ),
+    );
+
+    const ids = await fetchRegisteredSubscriptionIds(CONFIG);
+
+    expect(ids).toEqual(['0123456789abcdef']);
+  });
+
+  it('endpoint と鍵は取り出さない', async () => {
+    server.use(
+      http.get(SUBSCRIPTIONS_URL, () =>
+        HttpResponse.json({
+          schemaVersion: 1,
+          updatedAt: '2026-08-02T00:00:00Z',
+          subscriptions: [
+            {
+              id: '0123456789abcdef',
+              label: 'Pixel',
+              createdAt: '2026-08-02T00:00:00Z',
+              endpoint: 'https://push.example/endpoint-value',
+              keys: { p256dh: 'p256dh-value', auth: 'auth-value' },
+            },
+          ],
+        }),
+      ),
+    );
+
+    // 必要なのは「この端末が載っているか」だけ。持ち回れば漏れる経路が増える。
+    const serialized = JSON.stringify(await fetchRegisteredSubscriptionIds(CONFIG));
+
+    expect(serialized).not.toContain('endpoint-value');
+    expect(serialized).not.toContain('p256dh-value');
+    expect(serialized).not.toContain('auth-value');
+  });
+
+  it('購読が0件なら空の配列になる', async () => {
+    server.use(
+      http.get(SUBSCRIPTIONS_URL, () =>
+        HttpResponse.json({ schemaVersion: 1, updatedAt: '2026-08-02T00:00:00Z', subscriptions: [] }),
+      ),
+    );
+
+    expect(await fetchRegisteredSubscriptionIds(CONFIG)).toEqual([]);
+  });
+
+  it('ファイルが無ければ null を返す。未登録と決めつけない', async () => {
+    server.use(http.get(SUBSCRIPTIONS_URL, () => new HttpResponse(null, { status: 404 })));
+
+    expect(await fetchRegisteredSubscriptionIds(CONFIG)).toBeNull();
+  });
+
+  it('壊れた内容でも例外にせず null を返す', async () => {
+    server.use(
+      http.get(SUBSCRIPTIONS_URL, () => new HttpResponse('{ 壊れた', { status: 200 })),
+    );
+
+    expect(await fetchRegisteredSubscriptionIds(CONFIG)).toBeNull();
   });
 });
